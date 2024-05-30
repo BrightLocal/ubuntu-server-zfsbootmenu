@@ -18,29 +18,29 @@ Supports:
 ## Usage
 Boot the system with an Ubuntu live desktop iso (ZFS 2.0 support needed for native encryption, so use Ubuntu 21.04 or later). Start the terminal (Ctrl+Alt+T) and enter the following.
 
-	git clone https://github.com/Sithuk/ubuntu-server-zfsbootmenu.git ~/ubuntu-server-zfsbootmenu
+	git clone https://github.com/BrightLocal/ubuntu-server-zfsbootmenu.git ~/ubuntu-server-zfsbootmenu
     cd ~/ubuntu-server-zfsbootmenu
-    chmod +x ubuntu_server_encrypted_root_zfs.sh
+    chmod +x ubuntu_server_root_zfs.sh
 	
-Edit the variables in the ubuntu_server_encrypted_root_zfs.sh file to your preferences.
+Edit the hostname variable in the ubuntu_server_root_zfs.sh file. You may also need to adjust the number of disks value or zraid type.
 
-	nano ubuntu_server_encrypted_root_zfs.sh
+	nano ubuntu_server_root_zfs.sh
 	
 Run the "install" option of the script.
 
-	./ubuntu_server_encrypted_root_zfs.sh install
+	./ubuntu_server_root_zfs.sh install
 	
 ## Optional: Remote access during boot
 The script includes an optional feature to provide remote access during boot. Remote access over ssh allows the system state to be rolled back to a previous snapshot without physical access to the system. This is helpful to return a system to a bootable state following a failed upgrade.
 
 Run the following optional part of the script to enable remote access to zfsbootmenu during boot. Guidance on the use of zfsbootmenu can be found at its project website linked in the credits below.
 
-	./ubuntu_server_encrypted_root_zfs.sh remoteaccess
+	./ubuntu_server_root_zfs.sh remoteaccess
 
 ## Optional: Create a zfs data pool
 The script includes an optional feature to create an encrypted zfs data pool on a non-root drive. The data pool will be unlocked automatically after the root drive password is entered at boot.
 
-	./ubuntu_server_encrypted_root_zfs.sh datapool
+	./ubuntu_server_root_zfs.sh datapool
 
 ## FAQ
 Additional guidance and notes can be found in the script.
