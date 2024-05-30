@@ -9,14 +9,12 @@ Supports:
 - Root filesystem on ZFS.
 - Choose from: Ubuntu Server, Ubuntu Desktop, Kubuntu, Xubuntu, Budgie, and Ubuntu MATE.
 - Single, mirror, raid0, raidz1, raidz2, and raidz3 topologies.
-- LUKS and native ZFS encryption.
-- Remote unlocking of encrypted pools at boot over SSH.
 - Automated system snapshots taken on a timer and also on system updates. 
 - Remote rollback of snapshots at boot for system recovery over SSH.
 - Creation of a separate encrypted data pool (single/mirror/raidz).
 
 ## Usage
-Boot the system with an Ubuntu live desktop iso (ZFS 2.0 support needed for native encryption, so use Ubuntu 21.04 or later). Start the terminal (Ctrl+Alt+T) and enter the following.
+Boot the system with an Ubuntu live desktop iso. Start the terminal (Ctrl+Alt+T) and enter the following.
 
 	git clone https://github.com/BrightLocal/ubuntu-server-zfsbootmenu.git ~/ubuntu-server-zfsbootmenu
     cd ~/ubuntu-server-zfsbootmenu
