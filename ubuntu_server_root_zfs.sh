@@ -10,6 +10,12 @@ set -euo pipefail
 
 ##Usage: <script_filename> install | remoteaccess | datapool
 
+##Hostname should be changed and number of disks should be set
+hostname="CHANGEME" #Name to identify the main system on the network. An underscore is DNS non-compliant.
+disks_root="CHANGEME" #Number of disks in array for root pool. Not used with single topology.
+##If needed, you can change the zraid type
+topology_root="raidz2" #"single", "raid0", "raidz1", "raidz2", or "raidz3" topology on root pool.
+
 ##Run with "install" option from Ubuntu live iso (desktop version) terminal.
 
 ##Remote access can be installed by either:
@@ -39,15 +45,14 @@ ubuntuver="jammy" #Ubuntu release to install. "jammy" (22.04). "noble" (24.04). 
 distro_variant="server" #Ubuntu variant to install. "server" (Ubuntu server; cli only.) "desktop" (Default Ubuntu desktop install). "kubuntu" (KDE plasma desktop variant). "xubuntu" (Xfce desktop variant). "budgie" (Budgie desktop variant). "MATE" (MATE desktop variant).
 user="mngr" #Username for new install.
 PASSWORD='$6$SeFaZyT6LXkrg2EJ$BU97PzHToIDu8g4nFJve3d5alzy.v9zff/e3rfNvM6.5vksUSNXl/Jbw86YlKLCq815x465n79iDnIl0V60Ux/' #Password for user in new install.
-hostname="brightlocal-ubuntu-server" #Name to identify the main system on the network. An underscore is DNS non-compliant.
+
 zfs_root_password="" #Password for encrypted root pool. Minimum 8 characters. "" for no password encrypted protection. Unlocking root pool also unlocks data pool, unless the root pool has no password protection, then a separate data pool password can be set below.
 locale="en_GB.UTF-8" #New install language setting.
 timezone="Etc/UTC" #New install timezone setting.
 zfs_rpool_ashift="12" #Drive setting for zfs pool. ashift=9 means 512B sectors (used by all ancient drives), ashift=12 means 4KiB sectors (used by most modern hard drives), and ashift=13 means 8KiB sectors (used by some modern SSDs).
 
 RPOOL="rpool" #Root pool name.
-topology_root="raidz2" #"single", "mirror", "raid0", "raidz1", "raidz2", or "raidz3" topology on root pool.
-disks_root="8" #Number of disks in array for root pool. Not used with single topology.
+
 EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
 swap_size="500" #Swap partition size in mebibytes (MiB). Size of swap will be larger than defined here with Raidz topologies.
 zfs_compression="zstd" #"lz4" is the zfs default; "zstd" may offer better compression at a cost of higher cpu usage.
