@@ -47,6 +47,7 @@ user="mngr" #Username for new install.
 PASSWORD='$6$SeFaZyT6LXkrg2EJ$BU97PzHToIDu8g4nFJve3d5alzy.v9zff/e3rfNvM6.5vksUSNXl/Jbw86YlKLCq815x465n79iDnIl0V60Ux/' #Password for user in new install.
 
 zfs_root_password="" #Password for encrypted root pool. Minimum 8 characters. "" for no password encrypted protection. Unlocking root pool also unlocks data pool, unless the root pool has no password protection, then a separate data pool password can be set below.
+zfs_root_encrypt="native" #Encryption type. "native" for native zfs encryption. "luks" for luks. Required if there is a root pool password, otherwise ignored.
 locale="en_GB.UTF-8" #New install language setting.
 timezone="Etc/UTC" #New install timezone setting.
 zfs_rpool_ashift="12" #Drive setting for zfs pool. ashift=9 means 512B sectors (used by all ancient drives), ashift=12 means 4KiB sectors (used by most modern hard drives), and ashift=13 means 8KiB sectors (used by some modern SSDs).
