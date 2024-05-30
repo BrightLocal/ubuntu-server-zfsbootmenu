@@ -35,29 +35,21 @@ set -euo pipefail
 ##zfs mount -a #Mount all datasets.
 
 ##Variables:
-ubuntuver="noble" #Ubuntu release to install. "jammy" (22.04). "noble" (24.04).
+ubuntuver="jammy" #Ubuntu release to install. "jammy" (22.04). "noble" (24.04). At BL we will use 22.04 for physical hosts for a while
 distro_variant="server" #Ubuntu variant to install. "server" (Ubuntu server; cli only.) "desktop" (Default Ubuntu desktop install). "kubuntu" (KDE plasma desktop variant). "xubuntu" (Xfce desktop variant). "budgie" (Budgie desktop variant). "MATE" (MATE desktop variant).
-user="testuser" #Username for new install.
-PASSWORD="testuser" #Password for user in new install.
+user="mngr" #Username for new install.
+PASSWORD='$6$SeFaZyT6LXkrg2EJ$BU97PzHToIDu8g4nFJve3d5alzy.v9zff/e3rfNvM6.5vksUSNXl/Jbw86YlKLCq815x465n79iDnIl0V60Ux/' #Password for user in new install.
 hostname="ubuntu" #Name to identify the main system on the network. An underscore is DNS non-compliant.
-zfs_root_password="testtest" #Password for encrypted root pool. Minimum 8 characters. "" for no password encrypted protection. Unlocking root pool also unlocks data pool, unless the root pool has no password protection, then a separate data pool password can be set below.
-zfs_root_encrypt="native" #Encryption type. "native" for native zfs encryption. "luks" for luks. Required if there is a root pool password, otherwise ignored.
+zfs_root_password="" #Password for encrypted root pool. Minimum 8 characters. "" for no password encrypted protection. Unlocking root pool also unlocks data pool, unless the root pool has no password protection, then a separate data pool password can be set below.
 locale="en_GB.UTF-8" #New install language setting.
-timezone="Europe/London" #New install timezone setting.
+timezone="Etc/UTC" #New install timezone setting.
 zfs_rpool_ashift="12" #Drive setting for zfs pool. ashift=9 means 512B sectors (used by all ancient drives), ashift=12 means 4KiB sectors (used by most modern hard drives), and ashift=13 means 8KiB sectors (used by some modern SSDs).
 
 RPOOL="rpool" #Root pool name.
-topology_root="single" #"single", "mirror", "raid0", "raidz1", "raidz2", or "raidz3" topology on root pool.
-disks_root="1" #Number of disks in array for root pool. Not used with single topology.
+topology_root="raidz2" #"single", "mirror", "raid0", "raidz1", "raidz2", or "raidz3" topology on root pool.
+disks_root="8" #Number of disks in array for root pool. Not used with single topology.
 EFI_boot_size="512" #EFI boot loader partition size in mebibytes (MiB).
 swap_size="500" #Swap partition size in mebibytes (MiB). Size of swap will be larger than defined here with Raidz topologies.
-datapool="datapool" #Non-root drive data pool name.
-topology_data="single" #"single", "mirror", "raid0", "raidz1", "raidz2", or "raidz3" topology on data pool.
-disks_data="1" #Number of disks in array for data pool. Not used with single topology.
-zfs_data_password="testtest" #If no root pool password is set, a data pool password can be set here. Minimum 8 characters. "" for no password protection.
-zfs_data_encrypt="native" #Encryption type. "native" for native zfs encryption. "luks" for luks. Required if there is a data pool password, otherwise ignored.
-datapoolmount="/mnt/$datapool" #Non-root drive data pool mount point in new install.
-zfs_dpool_ashift="12" #See notes for rpool ashift. If ashift is set too low, a significant read/write penalty is incurred. Virtually no penalty if set higher.
 zfs_compression="zstd" #"lz4" is the zfs default; "zstd" may offer better compression at a cost of higher cpu usage.
 mountpoint="/mnt/ub_server" #Mountpoint in live iso.
 remoteaccess_first_boot="no" #"yes" to enable remoteaccess during first boot. Recommend leaving as "no" and run script with "remoteaccess". See notes in section above.
@@ -75,7 +67,7 @@ remoteaccess_ip="192.168.0.222" #Remote access static IP address to connect to Z
 remoteaccess_netmask="255.255.255.0" #Remote access subnet mask. Not used for "dhcp" automatic IP configuration.
 mirror_archive="yes" #"yes" will select the fastest mirror archive to source packages. "no" to use the default archive.
 install_warning_level="PRIORITY=critical" #"PRIORITY=critical", or "FRONTEND=noninteractive". Pause install to show critical messages only or do not pause (noninteractive). Script still pauses for keyboard selection at the end.
-extra_programs="no" #"yes", or "no". Install additional programs if not included in the ubuntu distro package. Programs: cifs-utils, locate, man-db, openssh-server, tldr.
+extra_programs="yes" #"yes", or "no". Install additional programs if not included in the ubuntu distro package. Programs: cifs-utils, locate, man-db, openssh-server, tldr.
 
 ##Check for root priviliges
 if [ "$(id -u)" -ne 0 ]; then
@@ -89,17 +81,6 @@ if [ -d /sys/firmware/efi ]; then
 else
    echo "Boot environment check failed. EFI boot environment not found. Script requires EFI."
    exit 1
-fi
-
-##Check encryption defined if password defined
-if [ -n "$zfs_root_password" ];
-then	
-	if [ -z $zfs_root_encrypt ];
-	then
-		echo "Password entered but no encryption method defined. Please define the zfs_root_encrypt variable."
-	else true
-	fi
-else true
 fi
 
 ##Functions
@@ -458,36 +439,6 @@ create_zpool_Func(){
 		topology_pool="${topology_root}"
 	;;
 	
-	data)
-		ashift="$zfs_dpool_ashift"
-		
-		if [ -n "$zfs_root_password" ];
-		then
-			##Set data pool key to use rpool key for single unlock at boot. So data pool uses the same password as the root pool.
-			case "$zfs_root_encrypt" in
-				native)
-					datapool_keyloc="/etc/zfs/$RPOOL.key"
-				;;
-				luks)
-					datapool_keyloc="/etc/cryptsetup-keys.d/$RPOOL.key"
-				;;
-			esac
-			keylocation="file://$datapool_keyloc"
-		else
-			if [ -n "$zfs_data_password" ];
-			then
-				keylocation="prompt"
-			else
-				true
-			fi
-		fi
-		
-		zpool_password="$zfs_data_password"
-		zpool_encrypt="$zfs_data_encrypt"
-		zpool_partition=""
-		zpool_name="$datapool"
-		topology_pool="${topology_data}"
-	;;
 	esac
 	
 	zpool_create_temp="/tmp/${pool}_creation.sh"
@@ -593,11 +544,6 @@ create_zpool_Func(){
 			add_zpool_disks
 		;;
 
-		mirror)
-			echo "${zpool_name} mirror \\" >> "$zpool_create_temp"
-			add_zpool_disks
-		;;
-		
 		raidz1)
 			echo "${zpool_name} raidz1 \\" >> "$zpool_create_temp"
 			add_zpool_disks	
@@ -621,81 +567,6 @@ create_zpool_Func(){
 	esac
 	
 	echo "$zpool_password" | sh "$zpool_create_temp" 
-}
-
-update_crypttab_Func(){
-	##Auto unlock using crypttab and keyfile
-	
-	script_env=$1 ##chroot, base
-	pool=$2 ##root, data	
-		
-	cat <<-EOH >/tmp/update_crypttab_$pool.sh
-		
-		##Set pool variables
-		case "$pool" in
-		root)
-			zpool_password="$zfs_root_password"
-			zpool_partition="-part3"
-			crypttab_parameters="luks,discard,initramfs"
-		;;
-		
-		data)
-			zpool_password="$zfs_data_password"
-			zpool_partition=""
-			crypttab_parameters="luks,discard"
-		;;
-		esac
-		
-		apt install -y cryptsetup
-							
-		loop_counter="\$(mktemp)"
-		echo 1 > "\${loop_counter}" ##Assign starting counter value.
-		
-		while IFS= read -r diskidnum;
-		do
-			i="\$(cat "\$loop_counter")"
-			echo "\$i"
-			luks_dmname="\$(sed "\${i}q;d" /tmp/luks_dmname_"${pool}".txt)"
-			
-			blkid_luks="\$(blkid -s UUID -o value /dev/disk/by-id/\${diskidnum}\${zpool_partition})"
-			
-			echo "\${zpool_password}" | cryptsetup -v luksAddKey /dev/disk/by-uuid/\${blkid_luks} /etc/cryptsetup-keys.d/$RPOOL.key
-			cryptsetup luksDump /dev/disk/by-uuid/\${blkid_luks}
-			
-			##https://cryptsetup-team.pages.debian.net/cryptsetup/README.initramfs.html
-			echo \${luks_dmname} UUID=\${blkid_luks} /etc/cryptsetup-keys.d/$RPOOL.key \${crypttab_parameters} >> /etc/crypttab
-			
-			i=\$((i + 1)) ##Increment counter.
-			echo "\$i" > "\$loop_counter"
-			
-		done < /tmp/diskid_check_"${pool}".txt
-		
-		##https://cryptsetup-team.pages.debian.net/cryptsetup/README.initramfs.html
-		sed -i 's,#KEYFILE_PATTERN=,KEYFILE_PATTERN="/etc/cryptsetup-keys.d/*.key",' /etc/cryptsetup-initramfs/conf-hook
-
-	EOH
-
-	case "${script_env}" in
-	chroot)
-		cp /tmp/diskid_check_"${pool}".txt "$mountpoint"/tmp
-		cp /tmp/update_crypttab_${pool}.sh "$mountpoint"/tmp
-		chroot "$mountpoint" /bin/bash -x /tmp/update_crypttab_$pool.sh
-	;;
-	base)
-		##Test for live environment.
-		if grep casper /proc/cmdline >/dev/null 2>&1;
-		then
-			echo "Live environment present. Reboot into new installation."
-			exit 1
-		else	
-			/bin/bash /tmp/update_crypttab_$pool.sh
-		fi
-	;;
-	*)
-		exit 1
-	;;
-	esac
-
 }
 
 debootstrap_part1_Func(){
@@ -1382,13 +1253,6 @@ systemsetupFunc_part4(){
 		encrypt_config			
 	EOCHROOT
 
-	##Update crypttab if luks used
-	if [ "$zfs_root_encrypt" = "luks" ];
-	then
-		update_crypttab_Func "chroot" "root"
-	else true
-	fi
-
 	chroot "$mountpoint" /bin/bash -x <<-EOCHROOT					
 			if [ "$quiet_boot" = "yes" ]; then
 				zfs set org.zfsbootmenu:commandline="spl_hostid=\$( hostid ) ro quiet" "$RPOOL"/ROOT
@@ -1691,12 +1555,10 @@ usersetup(){
 
 	chroot "$mountpoint" /bin/bash -x <<-EOCHROOT
 
-		##gecos parameter disabled asking for finger info
-		adduser --disabled-password --gecos "" "$user"
+		useradd -m -p "${PASSWORD}" -s /bin/bash "$user"
 		cp -a /etc/skel/. /home/"$user"
 		chown -R "$user":"$user" /home/"$user"
 		usermod -a -G adm,cdrom,dip,lpadmin,lxd,plugdev,sambashare,sudo "$user"
-		echo -e "$user:$PASSWORD" | chpasswd
 	
 	EOCHROOT
 }
@@ -1730,74 +1592,12 @@ distroinstall(){
 				##Minimal install: ubuntu-server-minimal
 				apt install --yes ubuntu-server
 			;;
-			desktop)
-				##Ubuntu default desktop install has a full GUI environment.
-				##Minimal install: ubuntu-desktop-minimal
-				apt install --yes ubuntu-desktop
-			;;
-			kubuntu)
-				##Ubuntu KDE plasma desktop install has a full GUI environment.
-				##Select sddm as display manager.
-				echo sddm shared/default-x-display-manager select sddm | debconf-set-selections
-				apt install --yes kubuntu-desktop
-			;;
-			xubuntu)
-				##Ubuntu xfce desktop install has a full GUI environment.
-				##Select lightdm as display manager.
-				echo lightdm shared/default-x-display-manager select lightdm | debconf-set-selections
-				apt install --yes xubuntu-desktop
-			;;
-			budgie)
-				##Ubuntu budgie desktop install has a full GUI environment.
-				##Select lightdm as display manager.
-				echo lightdm shared/default-x-display-manager select lightdm | debconf-set-selections
-				apt install --yes ubuntu-budgie-desktop
-			;;
-			MATE)
-				##Ubuntu MATE desktop install has a full GUI environment.
-				##Select lightdm as display manager.
-				echo lightdm shared/default-x-display-manager select lightdm | debconf-set-selections
-				apt install --yes ubuntu-mate-desktop
-			;;
-			#cinnamon)
-			##ubuntucinnamon-desktop package unavailable in 22.04.
-			#	##Ubuntu cinnamon desktop install has a full GUI environment.
-			#	apt install --yes ubuntucinnamon-desktop
-			#;;
 			*)
 				echo "Ubuntu variant variable not recognised. Check ubuntu variant variable."
 				exit 1
 			;;
 		esac
 
-	EOCHROOT
-}
-
-NetworkManager_config(){
-	chroot "$mountpoint" /bin/bash -x <<-EOCHROOT
-		
-		##Update netplan config to use NetworkManager if installed. Otherwise will default to networkd.
-		if [ "\$(dpkg-query --show --showformat='\${db:Status-Status}\n' "network-manager")" = "installed" ];
-		then
-			##Update netplan configuration for NetworkManager.
-			ethernetinterface="\$(basename "\$(find /sys/class/net -maxdepth 1 -mindepth 1 -name "${ethprefix}*")")"
-			rm /etc/netplan/01-"\$ethernetinterface".yaml
-			cat > /etc/netplan/01-network-manager-all.yaml <<-EOF
-				#Let NetworkManager manage all devices on this system.
-				network:
-				  version: 2
-				  renderer: NetworkManager
-			EOF
-			
-			##Disable systemd-networkd to prevent conflicts with NetworkManager.
-			systemctl stop systemd-networkd
-			systemctl disable systemd-networkd
-			#systemctl mask systemd-networkd
-			
-			netplan apply
-		else true
-		fi
-	
 	EOCHROOT
 }
 
@@ -1858,11 +1658,6 @@ extra_programs(){
 	case "$extra_programs" in
 	yes)	
 		chroot "$mountpoint" /bin/bash -x <<-EOCHROOT
-			
-			##additional programs
-			
-			##install samba mount access
-			apt install -yq cifs-utils
 			
 			##install openssh-server
 			apt install -y openssh-server
@@ -1953,84 +1748,6 @@ setupremoteaccess(){
 		disclaimer
 		remote_zbm_access_Func "base"
 	fi
-}
-
-createdatapool(){
-	disclaimer
-		
-	##Check on whether data pool already exists
-	if [ "$(zpool status "$datapool")" ];
-	then
-		echo "Warning: $datapool already exists. Are you use you want to wipe the drive and destroy $datapool? Press Enter to Continue or CTRL+C to abort."
-		read -r _
-	else
-		echo "$datapool pre-existance check passed."
-	fi
-	
-	##Warning on auto unlock
-	if [ -n "$zfs_data_password" ];
-	then
-		echo "Warning: Encryption selected. If the root pool is also encrypted then the root pool keyfile will be used to auto unlock the data pool at boot. Press Enter to Continue or CTRL+C to abort."
-		read -r _
-	else true
-	fi
-	
-	##Get datapool disk ID(s)
-	getdiskID_pool "data"
-	
-	##Clear partition table
-	clear_partition_table "data"
-	partprobe
-	#sleep 2
-	
-	##Create pool mount point
-	if [ -d "$datapoolmount" ]; then
-		echo "Data pool mount point exists."
-	else
-		mkdir -p "$datapoolmount"
-		chown "$user":"$user" "$datapoolmount"
-		echo "Data pool mount point created."
-	fi
-	echo "$datapoolmount"
-		
-	##Automount with zfs-mount-generator
-	touch /etc/zfs/zfs-list.cache/"$datapool"
-
-	##Create data pool
-	create_zpool_Func "data"
-	
-	##Update crypttab for autounlock if luks used on root pool
-	if [ "$zfs_data_encrypt" = "luks" ];
-	then
-		if [ -f "/etc/cryptsetup-keys.d/$RPOOL.key" ];
-		then
-			update_crypttab_Func "base" "data"
-		else
-			echo "$RPOOL.key not found in /etc/cryptsetup-keys.d/."
-			exit 1
-		fi
-	else true
-	fi
-	
-	##Verify that zed updated the cache by making sure the cache file is not empty.
-	cat /etc/zfs/zfs-list.cache/"$datapool"
-	##If it is empty, force a cache update and check again.
-	##Note can take a while. c.30 seconds for loop to succeed.
-	while [ ! -s /etc/zfs/zfs-list.cache/"$datapool" ]
-	do
-		##reset any pool property to update cache files
-		zfs set canmount=on "$datapool"
-		sleep 1
-	done
-	cat /etc/zfs/zfs-list.cache/"$datapool"	
-	
-	##Create link to datapool mount point in user home directory.
-	ln -s "$datapoolmount" "/home/$user/"
-	chown -R "$user":"$user" {"$datapoolmount","/home/$user/$datapool"}
-	
-	zpool status
-	zfs list
-	
 }
 
 reinstall-zbm(){
@@ -2127,7 +1844,6 @@ install(){
 
 	usersetup #Create user account and setup groups.
 	distroinstall #Upgrade the minimal system to the selected distro.
-	NetworkManager_config #Adjust networking config for NetworkManager, if installed by distro.
 	pyznapinstall #Snapshot management.
 	extra_programs #Install extra programs.
 	logcompress #Disable log compression.
@@ -2153,11 +1869,6 @@ case "${1-default}" in
 		echo "Running remote access to ZFSBootMenu install. Press Enter to Continue or CTRL+C to abort."
 		read -r _
 		setupremoteaccess
-	;;
-	datapool)
-		echo "Running create data pool on non-root drive. Press Enter to Continue or CTRL+C to abort."
-		read -r _
-		createdatapool
 	;;
 	reinstall-zbm)
 		echo "Re-installing zfsbootmenu. Press Enter to Continue or CTRL+C to abort."
