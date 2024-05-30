@@ -22,7 +22,7 @@ Boot the system with an Ubuntu live desktop iso (ZFS 2.0 support needed for nati
     cd ~/ubuntu-server-zfsbootmenu
     chmod +x ubuntu_server_root_zfs.sh
 	
-Edit the hostname variable in the ubuntu_server_root_zfs.sh file. You may also need to adjust the number of disks value or zraid type.
+Edit the hostname variable in the ubuntu_server_root_zfs.sh file, and set the number of disks value. You may also need to adjust the zraid type, default is raidz2 (double parity, akin to RAID6).
 
 	nano ubuntu_server_root_zfs.sh
 	
